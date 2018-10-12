@@ -1,0 +1,10 @@
+site_title:
+user:
+domains:
+host_ip:
+private_ip:
+path_to_key:
+git_repo:
+
+secret_key:
+debug:

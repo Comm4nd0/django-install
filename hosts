@@ -1,0 +1,11 @@
+[hosts]
+pedigree-demo ansible_host="{{ host_ip }}" private_ip="{{ private_ip }}"
+
+[cloud:children]
+hosts
+
+[cloud:vars]
+ansible_connection=ssh
+ansible_user=ubuntu
+ansible_ssh_private_key_file="{{ path_to_key }}"
+ansible_python_interpreter=/usr/bin/python2.7

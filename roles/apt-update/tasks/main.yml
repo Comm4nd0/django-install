@@ -1,0 +1,14 @@
+---
+- name: Update and upgrade apt packages
+  become: true
+  apt:
+    upgrade: full
+    update_cache: yes
+    force_apt_get: yes
+
+- name: Upgrade dist
+  become: true
+  apt:
+    upgrade: dist
+    update_cache: yes
+    force_apt_get: yes

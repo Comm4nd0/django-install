@@ -1,0 +1,111 @@
+---
+- name: Building {{ site_title }}
+  hosts: cloud
+  tasks:
+   - name: Apt update && upgrade
+     include_role:
+       name: apt-update
+
+   ## Install packages
+   - name: install basic packages
+     apt:
+       name: "{{ packages }}"
+     become: true
+     vars:
+       packages:
+        - python3-pip
+        - python3-dev
+        - libpq-dev
+        - postgresql
+        - postgresql-contrib
+        - nginx
+        - python-setuptools
+        - virtualenv
+
+   - name: Clean site dir path
+     file:
+       state: absent
+       path: /home/{{ user }}/{{ site_title }}
+
+  # Example clone repo
+   - name: Clone "{{ git_repo  }}"
+     git:
+       repo: "{{ git_repo }}"
+       dest: /home/{{ user }}/{{ site_title }}/
+       clone: yes
+
+   - name: Copy local_settings.py settings
+     template:
+       src: files/local_settings
+       dest: /home/{{ user }}/{{ site_title }}/{{ site_title }}/local_settings.py
+       mode: 0755
+
+   - name: Change the working directory to /home/{{ user }}/{{ site_title }}/ before executing vitualenv venv
+     shell: virtualenv --python=python3.5 venv
+     args:
+       chdir: /home/{{ user }}/{{ site_title }}/
+
+   - name: Install requirements into venv
+     pip:
+       requirements: /home/{{ user }}/{{ site_title }}/requirements.txt
+       virtualenv: /home/{{ user }}/{{ site_title }}/venv
+
+   - name: Copy gunicorn service
+     template:
+       src: files/gunicorn.service.j2
+       dest: /etc/systemd/system/gunicorn.service
+       mode: 0755
+     become: true
+
+   - name: enable service gunicorn.service and ensure it is started
+     systemd:
+       name: gunicorn.service
+       enabled: yes
+       state: started
+     become: true
+
+   - name: Copy Nginx settings
+     template:
+       src: files/nginx
+       dest: /etc/nginx/sites-available/{{ site_title }}
+       mode: 0755
+     become: true
+
+   - name: Create symbolic link for nginx
+     file:
+       src: /etc/nginx/sites-available/{{ site_title }}
+       dest: /etc/nginx/sites-enabled/{{ site_title }}
+       state: link
+     become: true
+
+   - name: Restart service nginx.service
+     systemd:
+       name: nginx.service
+       state: restarted
+     become: true
+
+   - name: Configure UFW
+     ufw:
+       rule: allow
+       name: Nginx Full
+     become: true
+
+
+   - name: migrate the database
+     django_manage:
+       command: migrate
+       app_path: /home/{{ user }}/{{ site_title }}
+       virtualenv: /home/{{ user }}/{{ site_title }}/venv
+
+   - name: collectstatic
+     django_manage:
+       command: collectstatic
+       app_path: /home/{{ user }}/{{ site_title }}
+       virtualenv: /home/{{ user }}/{{ site_title }}/venv
+
+   - name: Restart service gunicorn.service
+     systemd:
+       name: gunicorn.service
+       state: restarted
+     become: true
+
